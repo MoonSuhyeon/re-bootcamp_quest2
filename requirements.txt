@@ -1,6 +1,16 @@
+fastapi
+uvicorn[standard]
 streamlit
+requests
+pandas
+plotly
 openai
 faiss-cpu
 numpy
 pdfplumber
+rank-bm25
+python-jose[cryptography]
 python-dotenv
+httpx
+
+# v26 RAGAS 평가 시 추가 설치: pip install ragas datasets
