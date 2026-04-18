@@ -1,0 +1,152 @@
+[
+  {
+    "trace_id": "4963e76e",
+    "timestamp": "2026-04-17 18:23:57",
+    "question": "에이전트 엔지니어링이 뭐야",
+    "queries": [
+      "에이전트 엔지니어링이 뭐야",
+      "정의: 에이전트 엔지니어링의 정의는 무엇인가?",
+      "원인: 에이전트 엔지니어링이 필요하게 된 이유는 무엇인가?",
+      "결과: 에이전트 엔지니어링이 가져오는 결과 또는 효과는 무엇인가?"
+    ],
+    "retrieved_chunks": [
+      {
+        "text": "AI\n에이전트 엔지니어링\nPART 1. 에이전트 시스템의 개념과 UX\n1.1\n에이전트\nAI 에이전트의 정의\n• Agent - 자율적인 결정\n스스로 데이터를 분석, 환경을 해석. 컨텍스트 기반 결정을 내리게 설계된 지능형 시스템\n복잡하고 변화가 많은 작업을 높은 자율성으로 수행\n• Agentic System - 에이전트의 작업을 돕는 인프라\n도구, 메모리, ...",
+        "source": "에이전트_엔지니어링1.pdf",
+        "rerank_score": 8.0
+      },
+      {
+        "text": "야\n• 인간은 작업자가 아니라 작업 관리자. 가치가 높은 의사 결정에 집중\n1.2\n에이전트 유형\n에이전트의 8가지 유형\n• 비즈니스 업무 에이전트 사전에 정의한 워크플로를 자동화. 특정 이벤트에 트리거\n• 대화형 에이전트 사용자와 상호작용하는 쳇봇 에이전트\n• 리서치 에이전트 정보 수집, 통합, 요약을 수행\n• 분석 에이전트 구조화된 데이터를 해석. 인사이...",
+        "source": "에이전트_엔지니어링1.pdf",
+        "rerank_score": 6.0
+      },
+      {
+        "text": "이전트 아키텍처 여러 에이전트가 협력. 각자 독립적, 병렬적, 조율된 방식으로 작동\n협업 전문화 : 업무 분할로 복잡한 작업을 효율적으로 처리\n병렬성 : 여러 작업을 동시에 수행. 확장성 향상 : 필요시 새로운 에이전트 추가. 더 많은 작업, 분산처리\n중복성과 복원력 : 일부 에이전트가 실패해도 중단x. 다른 에이전트가 대신 수행\n• 멀티 에이전트 시스템의...",
+        "source": "에이전트_엔지니어링1.pdf",
+        "rerank_score": 5.0
+      }
+    ],
+    "answer": "📌 요약  \n에이전트 엔지니어링은 자율적인 결정을 내리는 AI 시스템인 에이전트를 설계하고 구현하는 과정으로, 에이전트는 데이터를 분석하고 환경을 해석하여 자율적으로 작업을 수행합니다. 이 과정에서 인간은 관리자로서 의사결정에 집중하도록 설계됩니다.  \n\n📖 근거  \n에이전트 엔지니어링은 AI 에이전트를 통해 복잡하고 변화가 많은 작업을 높은 자율성으로 수행하도록 돕는 인프라와 도구를 활용합니다. 에이전트는 다른 에이전트와 협업하여 문제를 해결하며, 인간은 작업자가 아니라 작업 관리자 역할을 수행하여 가치가 높은 의사 결정을 내리도록 합니다 ([출처 1](#1)).  \n\n✅ 결론  \n에이전트 엔지니어링은 AI 시스템이 자율적으로 작업을 수행하도록 지원하는 과정으로, 인간이 관리적인 역할에 초점을 맞출 수 있도록 설계되어 있다는 점에서 확신도가 높습니다.",
+    "evaluation": {
+      "정확도": 9,
+      "관련성": 9,
+      "환각여부": "없음",
+      "환각근거": "답변은 주어진 질문에 대해 정확하고 관련 있는 내용을 제공하며, 에이전트 엔지니어링의 주요 정의와 특징을 잘 요약하고 설명하고 있습니다."
+    },
+    "hallucination_analysis": null,
+    "spans": [
+      {
+        "name": "query_rewriting",
+        "duration_ms": 3011,
+        "tokens": {
+          "prompt": 146,
+          "completion": 112,
+          "total": 258
+        },
+        "input_summary": "원본: 에이전트 엔지니어링이 뭐야",
+        "output_summary": "쿼리 4개 생성",
+        "decision": "의도 분해형 우선 3개 요청 → 변형 6개 생성됨",
+        "error": ""
+      },
+      {
+        "name": "embedding_search",
+        "duration_ms": 1015,
+        "tokens": {
+          "prompt": 0,
+          "completion": 0,
+          "total": 0
+        },
+        "input_summary": "쿼리 4개",
+        "output_summary": "후보 청크 28개 수집",
+        "decision": "쿼리당 top 20, 중복 제거 후 28개",
+        "error": ""
+      },
+      {
+        "name": "prefilter",
+        "duration_ms": 1333,
+        "tokens": {
+          "prompt": 0,
+          "completion": 0,
+          "total": 0
+        },
+        "input_summary": "28개 후보",
+        "output_summary": "상위 10개 선별 (컷오프 유사도: 0.3501)",
+        "decision": "임베딩 코사인 유사도 ≥ 0.3501 인 10개 통과, 18개 제거",
+        "error": ""
+      },
+      {
+        "name": "rerank",
+        "duration_ms": 2389,
+        "tokens": {
+          "prompt": 2570,
+          "completion": 49,
+          "total": 2619
+        },
+        "input_summary": "10개 후보",
+        "output_summary": "상위 3개 선택 (점수: 8.0, 6.0, 5.0)",
+        "decision": "LLM 0~10 채점 → 점수 순 정렬 → 상위 3개 반환",
+        "error": ""
+      },
+      {
+        "name": "step1_summarize",
+        "duration_ms": 5729,
+        "tokens": {
+          "prompt": 952,
+          "completion": 338,
+          "total": 1290
+        },
+        "input_summary": "3개 청크",
+        "output_summary": "3개 요약 완료",
+        "decision": "질문 관점 핵심 추출, 무관 내용 제거",
+        "error": ""
+      },
+      {
+        "name": "step2_analyze",
+        "duration_ms": 4556,
+        "tokens": {
+          "prompt": 582,
+          "completion": 315,
+          "total": 897
+        },
+        "input_summary": "3개 요약",
+        "output_summary": "공통점/차이점/핵심/불확실성 구조화 완료",
+        "decision": "불확실성·누락 감지: 있음",
+        "error": ""
+      },
+      {
+        "name": "step3_answer",
+        "duration_ms": 6297,
+        "tokens": {
+          "prompt": 1651,
+          "completion": 231,
+          "total": 1882
+        },
+        "input_summary": "요약 + 분석 + 원문",
+        "output_summary": "답변 426자 생성",
+        "decision": "Step1 요약 + Step2 분석을 힌트로 최종 구조화 답변",
+        "error": ""
+      },
+      {
+        "name": "evaluation",
+        "duration_ms": 2200,
+        "tokens": {
+          "prompt": 1207,
+          "completion": 64,
+          "total": 1271
+        },
+        "input_summary": "질문 + 문서 + 답변",
+        "output_summary": "정확도 9/5 · 관련성 9/5 · 환각 없음",
+        "decision": "문서↔답변 직접 비교 채점",
+        "error": ""
+      }
+    ],
+    "total_tokens": {
+      "prompt": 7108,
+      "completion": 1109,
+      "total": 8217
+    },
+    "total_latency_ms": 26530,
+    "bottleneck": "step3_answer",
+    "mode": "multidoc"
+  }
+]
