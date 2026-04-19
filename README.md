@@ -213,6 +213,34 @@ python evaluate_ragas.py --last 20     # 최근 20개만
 
 ---
 
+### v27: Corrective RAG (CRAG)
+
+**테마: "검색 품질 자동 교정"**
+
+검색 결과를 LLM이 채점하고, 점수에 따라 내부 문서 / 웹 검색 보완 / 웹 검색 대체를 자동 선택합니다.
+
+```
+검색 → CRAGGrader.grade() → Correct / Ambiguous / Incorrect
+  → Correct   : 내부 문서로 생성
+  → Ambiguous : 내부 문서 + 웹 검색 병합 후 생성
+  → Incorrect : 웹 검색 결과로만 생성
+```
+
+SSE 스트리밍에 **status 이벤트** 추가:
+```json
+{"type": "status",  "content": "📋 CRAG: 문서 검색 중..."}
+{"type": "status",  "content": "🌐 CRAG: Ambiguous → 웹 검색 보완 중..."}
+{"type": "done",    "crag_grade": {"label": "Ambiguous", "score": 4.1, "reason": "..."}, ...}
+```
+
+| 파라미터 | 기본값 | 설명 |
+|----------|--------|------|
+| `use_crag` | `false` | CRAG 파이프라인 활성화 |
+| `CRAG_RELEVANCE_THRESHOLD` | `5.0` | 이상이면 Correct (환경변수 조정 가능) |
+| `CRAG_AMBIGUOUS_THRESHOLD` | `3.0` | 이상이면 Ambiguous, 미만이면 Incorrect |
+
+---
+
 ## 버전별 해결 문제 요약
 
 | 버전 범위 | 테마 | 핵심 해결 |
@@ -229,10 +257,11 @@ python evaluate_ragas.py --last 20     # 최근 20개만
 | v24 | 설정·구조 분리 | Config 중앙화, Service Layer (routers/) |
 | v25 | Agentic 검색 | Multi-Hop Reasoning, Self-RAG |
 | v26 | 실시간 + 검증 | Streaming SSE, RAGAS 정량 평가 |
+| v27 | 검색 품질 교정 | Corrective RAG (CRAG), 웹 검색 자동 보완 |
 
 ---
 
-## 최종 스택 (v26)
+## 최종 스택 (v27)
 
 ```
 [Client] Streamlit (client_app.py)
@@ -240,11 +269,12 @@ python evaluate_ragas.py --last 20     # 최근 20개만
 [Server] FastAPI (server_api.py)
     ├── routers/auth.py      — JWT 인증
     ├── routers/docs.py      — PDF 업로드 · 인덱싱
-    ├── routers/chat.py      — RAG 질의응답 · Streaming
+    ├── routers/chat.py      — RAG 질의응답 · Streaming · CRAG
     ├── routers/metrics.py   — 지표 · 로그 · 실패 데이터셋
     └── routers/admin.py     — 사용자 관리
     ↓
 [Engine] rag_engine.py
+    ├── CRAGGrader            — 검색 결과 채점 (0~10) · Grade 분류   [NEW v27]
     ├── MultiHopPlanner       — 질문 분해 · hop별 검색 · 종합
     ├── SelfRAGChecker        — 검색 충분성 판단 · 자기 교정
     ├── AsyncRAGEngine        — asyncio 기반 비동기 파이프라인
@@ -282,7 +312,7 @@ pip install ragas datasets   # RAGAS 평가 시 필요
 ### 3. 서버 실행 (터미널 1)
 
 ```bash
-cd rag_v26
+cd rag_v27
 python server_api.py
 # → http://localhost:8000
 # → Swagger UI: http://localhost:8000/docs
@@ -291,7 +321,7 @@ python server_api.py
 ### 4. 클라이언트 실행 (터미널 2)
 
 ```bash
-cd rag_v26
+cd rag_v27
 streamlit run client_app.py
 # → http://localhost:8501
 ```
@@ -307,7 +337,7 @@ streamlit run client_app.py
 
 ```bash
 # /chat/stream 으로 질문을 몇 개 보낸 후
-cd rag_v26
+cd rag_v27
 python evaluate_ragas.py --last 20
 ```
 
@@ -330,9 +360,12 @@ rag-app/
 │   └── routers/
 ├── rag_v25/              ← Multi-Hop + Self-RAG
 │   └── (v24 구조 동일)
-├── rag_v26/              ← Streaming + RAGAS (최신)
+├── rag_v26/              ← Streaming + RAGAS
 │   ├── evaluate_ragas.py
 │   └── (v25 구조 동일)
+├── rag_v27/              ← Corrective RAG (CRAG) (최신)
+│   ├── evaluate_ragas.py
+│   └── (v26 구조 동일)
 ├── rag_versions/         ← v2~v22 단일 파일 히스토리
 ├── change_logs/          ← 버전별 변동사항 요약
 └── requirements.txt
@@ -353,3 +386,4 @@ rag-app/
 | 검색 | Dense + BM25 (rank-bm25) + RRF Hybrid |
 | 평가 | RAGAS (Faithfulness / Answer Relevancy / Context Precision) |
 | 스트리밍 | FastAPI StreamingResponse + SSE |
+| 검색 교정 | Corrective RAG — LLM Grade + DuckDuckGo 웹 검색 |
