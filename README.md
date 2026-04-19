@@ -17,102 +17,120 @@
 
 ## 시스템 진화
 
-### v2: OpenAI API 기반 전환
-- Embedding + GPT를 OpenAI API로 통합
-- 로컬 모델 → API 기반으로 전환
+각 버전은 실제로 관찰된 문제에서 출발합니다. **문제 → 해결 → 효과** 순서로 설계 근거를 기술합니다.
 
-### v3: 기본 검색 품질 개선
-- 코사인 유사도 기반 검색
-- 문단/문장 단위 청킹
+---
 
-### v4: 검색 파이프라인 고도화
-- Query Rewriting 추가
-- LLM 기반 Reranking 도입
+### v2~v3: API 전환 + 기초 검색
 
-### v5: Chunking 품질 개선
-- Overlap chunking
-- Semantic chunking (문맥 단절 문제 해결)
+**문제** 로컬 모델은 품질이 낮고, 텍스트 전체를 그대로 넘기면 관련 없는 내용까지 LLM이 읽어야 합니다.
 
-### v6: 답변 품질 제어
-- 근거 인용(Source attribution)
-- 구조화된 답변 포맷 (`📌 요약 / 📖 근거 / ✅ 결론`)
+**해결** OpenAI Embedding + GPT API로 전환, 코사인 유사도 기반 유사 청크만 검색.
 
-### v7: Multi-document Reasoning
-- 3단계 추론 파이프라인 (요약 → 관계 분석 → 최종 답변)
-- 문서 간 비교 및 종합 reasoning
+**효과** 품질 기반선 확보, LLM이 읽는 컨텍스트 범위를 관련 구간으로 좁힘.
 
-### v8: Retrieval 안정성 & Recall 개선
-- 의도 분해 Query Rewriting
-- Embedding Pre-filter
-- `(chunk, source)` 튜플 구조로 출처 정확성 보장
+---
 
-### v9: Observability Layer
-- LLM 자동 평가 (accuracy / relevance / hallucination)
-- 로그 저장 시스템
-- 대시보드 UI
+### v4~v5: Query Rewriting + Semantic Chunking
 
-### v10: Full Tracing & AI Observability
-- Span 기반 Tracing 시스템
-- Token usage / latency 측정, Bottleneck detection
-- Hallucination root-cause 분석
-- Arize Phoenix 수준 관측성 구현
+**문제** 질문을 그대로 검색하면 의미 파악에 실패하고, 고정 길이 청킹은 문맥을 중간에 끊습니다.
 
-### v11: 안정성 버그 수정
-- 평가 점수 클램핑 (1~5 보장)
-- `[출처 N]` 클릭 가능한 앵커 링크
+**해결** LLM으로 질문을 재작성해 검색 의도를 명확히 하고, Overlap/Semantic Chunking으로 문맥 단절 제거.
 
-### v12: Hybrid Retrieval + Evaluation
-- Dense + BM25 + RRF Hybrid Search
-- Embedding Cache 시스템
-- NDCG@k 기반 검색 품질 평가
+**효과** 검색 관련성 향상, 청크 경계에서 발생하는 정보 손실 감소.
 
-### v13: Query Routing Engine
-- 질문 의도 자동 분류 (6 types: factual / definition / multi_hop / reasoning / exploratory / ambiguous)
-- 검색 전략 동적 선택
+---
 
-### v14: Ablation Study Framework
-- 구성 요소별 파이프라인 자동 실험
-- Query Rewrite / BM25 / Rerank 기여도 분석
+### v6~v8: 출처 인용 + Multi-doc + Recall 보강
 
-### v15: Self-Refinement Loop
-- Draft → Critique → Refine 3단계 답변 생성
-- LLM이 자신의 초안을 스스로 비판하고 재작성
+**문제** 답변에 출처가 없어 신뢰도가 낮고, 단일 청크로는 복합 질문에 답하지 못하며, 키워드 검색을 완전히 배제하면 정확한 고유명사·수치가 누락됩니다.
 
-### v16: Multi-Vector Index
-- 3-tier 검색: chunk index + sentence index + keyword index
-- 세밀한 검색 단위로 Recall 개선
+**해결**
+- Source attribution (`📌 요약 / 📖 근거 / ✅ 결론` 포맷)
+- 3단계 Multi-doc reasoning (요약 → 관계 분석 → 종합)
+- Embedding Pre-filter + `(chunk, source)` 튜플로 출처 추적
 
-### v17: Context Compression (Phase 2)
-- 임베딩 유사도 기반 문장 추출
-- Context window 절약 + 노이즈 감소
+**효과** 답변 신뢰도·투명성 향상, 복합 질문 처리 가능, Recall 개선.
 
-### v18: Caching System
-- `QueryResultCache`: 동일 쿼리 검색 결과 TTL 캐시 (3600초)
-- `AnswerCache`: 동일 질문 최종 답변 캐시 (1800초)
+---
 
-### v19: Integrated Pipeline + Fallback
-- v16~v18 모든 기능 통합
-- 평가 기반 자동 재시도 Fallback (낮은 정확도 감지 시 재검색)
+### v9~v11: Observability (블랙박스 탈출)
 
-### v20: Failure Dataset & Auto Improvement Loop
-- `classify_failure_types()`: 평가 결과 기반 실패 자동 분류
-  - `low_accuracy` / `hallucination` / `incomplete_answer` / `retrieval_failure` / `low_relevance`
-- `FailureDataset`: 실패 케이스 전용 저장
-- Fine-tune JSONL 내보내기 (OpenAI fine-tuning API 직접 사용 가능)
+**문제** 답변이 좋은지 나쁜지 알 방법이 없고, 어디서 지연이 발생하는지도 보이지 않습니다.
 
-### v21: Parallel Search + Retrieval Metrics
-- `ThreadPoolExecutor` 기반 4-way 병렬 검색 (Dense / BM25 / Sentence / Keyword 동시 실행)
-- NDCG@k 검색 품질 정량 평가
-- Rate Limiting, P50 / P95 / P99 응답 지연 측정
+**해결** LLM 자동 평가(accuracy/relevance/hallucination), Span 기반 Tracing, Token usage·latency 측정, 대시보드 UI.
 
-### v22: 인증 / 모니터링 / 자동 라우팅
-- JWT 기반 로그인 게이트
-- `UserManager`: 사용자 생성·삭제·비밀번호 관리
-- 자동 쿼리 라우팅 + Alert 시스템
+**효과** 품질 문제와 병목을 수치로 파악 → 다음 개선 방향 결정 가능.
 
-### v23: 아키텍처 분리 + LLM Compression + ToolRegistry + AsyncRAGEngine
+---
 
-**구조 변경: 모놀리식 → 3파일 분리**
+### v12~v14: Hybrid Search + 라우팅 + Ablation
+
+**문제** Dense Search만 사용하면 키워드 누락으로 Recall이 떨어집니다. 어떤 구성 요소가 실제로 도움이 되는지도 알 수 없습니다.
+
+**해결**
+- BM25 + Dense 결과를 RRF(Reciprocal Rank Fusion)로 병합 → 키워드 Recall 향상
+- Reranking으로 상위 결과 Precision 향상
+- Query Routing으로 질문 유형별(factual / reasoning / exploratory …) 최적 전략 자동 선택
+- Ablation Study: 구성 요소 ON/OFF 자동 실험으로 기여도 수치화
+
+**효과** Recall + Precision 동시 향상, 과학적 구성 검증.
+
+---
+
+### v15~v17: 답변 품질 자동화 + 세밀한 검색
+
+**문제** 첫 번째 초안이 항상 최선이 아니고, 청크 단위 검색만으로는 짧은 결정적 문장을 놓칩니다. 긴 컨텍스트는 LLM 비용과 노이즈를 높입니다.
+
+**해결**
+- Self-Refinement: Draft → Critique → Refine 3단계 자기 비판·재작성
+- Multi-Vector Index: chunk / sentence / keyword 3계층 검색으로 세밀한 매칭
+- Context Compression: 유사도 낮은 문장 제거로 컨텍스트 축소
+
+**효과** 답변 완성도 향상, Context window 절약, 환각 소재 감소.
+
+---
+
+### v18~v19: 캐싱 + Fallback (운영 안정성)
+
+**문제** 동일 질문을 반복할 때마다 LLM을 재호출하면 비용·지연이 낭비되고, 낮은 품질 답변이 그냥 반환됩니다.
+
+**해결**
+- `QueryResultCache` (TTL 3600초) + `AnswerCache` (TTL 1800초): 캐시 히트 시 즉시 반환
+- 평가 점수 미달 시 쿼리 재작성 → 재검색 Fallback 자동 실행
+
+**효과** 반복 질문 응답 속도·비용 감소, 저품질 답변 자동 재시도.
+
+---
+
+### v20: 실패 학습 루프
+
+**문제** 실패 케이스가 쌓여도 모델이 개선되지 않습니다. 어떤 유형의 실패가 얼마나 발생하는지도 불분명합니다.
+
+**해결** `classify_failure_types()`로 실패를 5종(`low_accuracy` / `hallucination` / `incomplete_answer` / `retrieval_failure` / `low_relevance`)으로 자동 분류 → `FailureDataset`에 저장 → Fine-tune JSONL 내보내기.
+
+**효과** 실패 패턴 가시화, OpenAI fine-tuning으로 약점 도메인 직접 보완 가능.
+
+---
+
+### v21~v22: 병렬화 + 프로덕션 준비
+
+**문제** Dense / BM25 / Sentence / Keyword 4개 인덱스를 순차 실행하면 지연이 누적되고, 인증·모니터링 없이는 실서비스 배포가 불가능합니다.
+
+**해결**
+- `ThreadPoolExecutor` 4-way 병렬 검색 → 전체 검색 지연 최소화
+- JWT 인증 게이트, `UserManager`(생성·삭제·비밀번호), Rate Limiting
+- P50/P95/P99 응답 지연 측정, Alert 시스템
+
+**효과** 검색 속도 대폭 개선, 사용자 격리 및 과부하 방지.
+
+---
+
+### v23: 모놀리식 → 3파일 분리
+
+**문제** 단일 파일에 UI·API·RAG 로직이 혼재하면 테스트·확장·협업이 불가능합니다.
+
+**해결** 책임을 3파일로 분리:
 
 | 파일 | 역할 |
 |------|------|
@@ -120,138 +138,99 @@
 | `server_api.py` | FastAPI 서버 — JWT 인증 + REST API |
 | `client_app.py` | Streamlit 프론트엔드 — HTTP 요청만 수행 |
 
-- **LLM Compression Phase 3**: LLM이 전역 청크에서 관련 문장 직접 선별
-- **ToolRegistry**: OpenAI function calling 기반 4종 도구 (계산기 / 날짜 / 단위변환 / 웹검색)
-- **AsyncRAGEngine**: `asyncio.gather()` + `AsyncOpenAI` 비동기 병렬 실행
+추가: **LLM Compression**(전역 청크에서 관련 문장 직접 선별), **ToolRegistry**(계산기/날짜/단위변환/웹검색), **AsyncRAGEngine**(`asyncio.gather()`).
+
+**효과** 각 계층 독립 테스트 가능, 프론트엔드 교체 시 서버 무변경.
 
 ---
 
-### v24: Config 분리 + Service Layer 분리
+### v24: Config 중앙화 + Service Layer
 
-**구조 변경: 단일 server_api.py → 라우터 기반 서비스 계층**
+**문제** 상수가 여러 파일에 하드코딩되어 환경 변경 시 다수 파일을 수정해야 합니다.
+
+**해결** `config.py`에 모든 상수 집중(환경변수 오버라이드), `routers/` 서비스 계층으로 엔드포인트 분리:
 
 ```
-rag_v24/
-├── config.py          ← 모든 상수·모델명·경로 중앙화 (환경변수 오버라이드)
-├── deps.py            ← INDEX_STATE + JWT 공유 의존성
-├── rag_engine.py      ← config import로 상수 제거
-├── server_api.py      ← 얇은 앱 팩토리
-└── routers/
-    ├── auth.py        ← POST /auth/login, /register, GET /me
-    ├── docs.py        ← POST /docs/upload, DELETE /docs/reset
-    ├── chat.py        ← POST /chat
-    ├── metrics.py     ← GET /metrics, /logs, /logs/{trace_id}, /failures
-    └── admin.py       ← GET/POST/DELETE /users
+routers/auth.py · docs.py · chat.py · metrics.py · admin.py
 ```
 
-- 모든 하드코딩 상수 → `config.py` 한 곳 관리
-- FastAPI 표준 라우터 구조 적용
+**효과** 환경별 설정 변경이 config.py 1곳에서 끝남, 라우터 단위 독립 유지보수.
 
 ---
 
-### v25: Multi-Hop Reasoning (Agentic RAG) + Self-RAG
+### v25: Multi-Hop + Self-RAG (Agentic 검색)
 
-**Multi-Hop Reasoning**
+**문제** "A와 B의 차이점과 그 원인"처럼 복합 질문은 단일 검색 한 번으로 완전한 답변을 낼 수 없습니다. 검색 결과가 부족해도 시스템이 그냥 진행합니다.
 
-복합 질문("A와 B의 차이점", "원인과 결과")을 엔진이 스스로 분해해 단계별로 검색합니다.
-
-```
-질문 → needs_multihop() 판단 → decompose() 분해
-  → hop1 검색 + 중간답변
-  → hop2 검색 + 중간답변
-  → ...
-  → synthesize() 최종 종합
-```
-
-**Self-RAG (Self-Correction)**
-
-검색 직후 LLM이 "이 결과가 충분한가?" 판단 → 부족하면 쿼리 재작성 후 재검색 (최대 3회).
+**해결**
+- **Multi-Hop**: `decompose()` → hop별 검색 → `synthesize()` 종합
+- **Self-RAG**: `check_sufficiency()` 판단 → 부족하면 `rewrite_hint`로 재검색 (최대 3회)
 
 ```
-검색 결과 → check_sufficiency() 판단
-  → 충분: 그대로 진행
-  → 부족: rewrite_hint로 재검색 → 결과 병합
+질문 → 분해 → hop1 검색+중간답 → hop2 검색+중간답 → 최종 종합
+검색 → 충분성 판단 → 부족: 재작성 → 재검색 → 결과 병합
 ```
 
-| 파라미터 | 기본값 | 설명 |
-|----------|--------|------|
-| `use_multihop` | `false` | Multi-Hop 파이프라인 활성화 |
-| `use_self_rag` | `false` | Self-RAG 재검색 루프 활성화 |
+**효과** 복합 질문 처리 가능, 검색 품질 자가 검증.
 
 ---
 
-### v26: Streaming SSE + RAGAS Evaluation
+### v26: Streaming + RAGAS 정량 평가
 
-**테마: "실시간 응답 + 정량 검증"**
+**문제** 긴 답변이 완성될 때까지 UI가 아무것도 표시하지 않아 UX가 나쁘고, 품질을 수치로 비교할 수 없습니다.
 
-**Streaming 응답 (`POST /chat/stream`)**
-
-```
-검색 (동기) → 스트리밍 생성 (yield token) → RAGAS 로그 저장 → done 이벤트
-```
-
-SSE 이벤트:
-```json
-data: {"type": "token",  "content": "..."}
-data: {"type": "done",   "trace_id": "abc", "latency_ms": 1200, "sources": [...]}
-```
-
-**RAGAS Evaluation (오프라인 평가 도구)**
-
-스트리밍 응답이 쌓인 `ragas_log_v26.json`을 읽어 품질을 정량 평가합니다.
+**해결**
+- SSE `POST /chat/stream`: 첫 토큰부터 실시간 표시
+- RAGAS 오프라인 평가: Faithfulness(환각 탐지) / Answer Relevancy / Context Precision
 
 ```bash
-python evaluate_ragas.py               # 전체 로그 평가
-python evaluate_ragas.py --last 20     # 최근 20개만
+python evaluate_ragas.py --last 20   # 최근 20개 응답 품질 수치화
 ```
 
-| RAGAS 메트릭 | 설명 |
-|-------------|------|
-| Faithfulness | 답변이 검색 문서에 근거하는 정도 (환각 탐지) |
-| Answer Relevancy | 답변이 질문에 적절한 정도 |
-| Context Precision | 검색된 문서가 실제로 유용한 비율 |
+**효과** 체감 응답 속도 개선, 버전 간 품질 수치 비교 가능.
 
 ---
 
 ### v27: Corrective RAG (CRAG) + 문학 특화 웹 검색
 
-**테마: "검색 품질 자동 교정 + 문학·세계관 해설 보완"**
+**문제** RAG는 검색 결과가 나빠도 그냥 답변을 생성합니다(garbage in, garbage out). 소설·세계관 문서는 내부 텍스트만으로는 해석·분석 질문에 한계가 있습니다.
 
-검색 결과를 LLM이 채점하고, 점수에 따라 내부 문서 / 웹 검색 보완 / 웹 검색 대체를 자동 선택합니다.
+**해결**
+- `CRAGGrader.grade()` 0~10 채점 → Correct / Ambiguous / Incorrect 분기
+- Incorrect 이면 웹 검색으로 대체, Ambiguous 이면 병합 후 생성
+- `extract_work_title()` + `build_literary_web_query()` → 단순 질문 대신 **"소나기 황순원 해설 ..."** 형태의 해설 특화 쿼리로 웹 탐색
 
 ```
-검색 → CRAGGrader.grade() → Correct / Ambiguous / Incorrect
-  → Correct   : 내부 문서로 생성
-  → Ambiguous : 내부 문서 + 문학 해설 웹 검색 병합 후 생성
-  → Incorrect : 문학 해설 웹 검색 결과로만 생성
+검색 → 채점 → Correct: 내부 문서만 / Ambiguous: 병합 / Incorrect: 웹 대체
 ```
 
-**문학 특화 웹 검색 쿼리 자동 생성**
+SSE에 status 이벤트 추가: 실시간으로 채점 결과와 웹 쿼리 표시.
 
-소설·세계관 문서를 업로드하면 검색이 부족할 때 단순 질문이 아닌 해설 특화 쿼리로 웹을 탐색합니다.
-
-```python
-# extract_work_title(): 청크에서 작품 제목·저자 자동 추출
-title, author = extract_work_title(chunks)
-# → ("소나기", "황순원")
-
-# build_literary_web_query(): 해설 특화 쿼리 생성
-query = build_literary_web_query(question, title, author)
-# → "소나기 황순원 해설 소년과 소녀의 관계는"
-```
-
-SSE 스트리밍에 **status 이벤트** 추가:
-```json
-{"type": "status",  "content": "📋 CRAG: 문서 검색 및 채점 중..."}
-{"type": "status",  "content": "🌐 CRAG: Ambiguous (점수 4.2/10) → 웹 해설 검색: \"소나기 황순원 해설 ...\""}
-{"type": "done",    "crag_grade": {"label": "Ambiguous", "score": 4.1, ...}, "web_query_used": "...", ...}
-```
+**효과** 검색 품질이 낮을 때 자동으로 웹 해설로 보완 → 잘못된 답변 방지.
 
 | 파라미터 | 기본값 | 설명 |
 |----------|--------|------|
 | `use_crag` | `false` | CRAG 파이프라인 활성화 |
-| `CRAG_RELEVANCE_THRESHOLD` | `5.0` | 이상이면 Correct (환경변수 조정 가능) |
+| `CRAG_RELEVANCE_THRESHOLD` | `5.0` | 이상이면 Correct |
 | `CRAG_AMBIGUOUS_THRESHOLD` | `3.0` | 이상이면 Ambiguous, 미만이면 Incorrect |
+
+---
+
+### v28: Literary Intelligence Layer (엔티티 인덱스 + 관계도 + 질문 유형 분류)
+
+**문제** "등장인물 목록을 알려줘", "소년과 소녀의 관계는?"처럼 구조적으로 답할 수 있는 질문도 전체 RAG 파이프라인을 태웁니다. 해석 질문과 사실 질문을 동일하게 처리하면 불필요한 웹 검색이 발생하거나 반대로 해석이 필요한 질문에 웹 보완이 생략됩니다.
+
+**해결**
+- 업로드 즉시 `LiteraryEntityExtractor`가 인물·지명·세력·아이템 인덱스와 인물 관계도를 구축
+- `answer_from_entity_index()`: 구조적 질문은 RAG 없이 인덱스에서 직접 반환
+- `LiteraryQueryRouter.classify()`: factual → RAG only, interpretive → CRAG 자동 활성화
+
+```
+질문 → 엔티티 직접 답변 시도 → 히트: 즉시 반환 (LLM 불필요)
+      → 미스: factual / interpretive 분류 → interpretive 이면 use_crag=True 자동 적용
+```
+
+**효과** 구조적 질문 응답 속도 대폭 감소, 해석 질문은 항상 웹 해설 보완 보장.
 
 ---
 
@@ -329,7 +308,7 @@ pip install ragas datasets   # RAGAS 평가 시 필요
 ### 3. 서버 실행 (터미널 1)
 
 ```bash
-cd rag_v27
+cd rag_v28
 python server_api.py
 # → http://localhost:8000
 # → Swagger UI: http://localhost:8000/docs
@@ -338,7 +317,7 @@ python server_api.py
 ### 4. 클라이언트 실행 (터미널 2)
 
 ```bash
-cd rag_v27
+cd rag_v28
 streamlit run client_app.py
 # → http://localhost:8501
 ```
@@ -354,7 +333,7 @@ streamlit run client_app.py
 
 ```bash
 # /chat/stream 으로 질문을 몇 개 보낸 후
-cd rag_v27
+cd rag_v28
 python evaluate_ragas.py --last 20
 ```
 
@@ -380,9 +359,12 @@ rag-app/
 ├── rag_v26/              ← Streaming + RAGAS
 │   ├── evaluate_ragas.py
 │   └── (v25 구조 동일)
-├── rag_v27/              ← Corrective RAG (CRAG) (최신)
+├── rag_v27/              ← Corrective RAG (CRAG)
 │   ├── evaluate_ragas.py
 │   └── (v26 구조 동일)
+├── rag_v28/              ← Literary Intelligence Layer (최신)
+│   ├── evaluate_ragas.py
+│   └── (v27 구조 동일)
 ├── rag_versions/         ← v2~v22 단일 파일 히스토리
 ├── change_logs/          ← 버전별 변동사항 요약
 └── requirements.txt
@@ -404,3 +386,4 @@ rag-app/
 | 평가 | RAGAS (Faithfulness / Answer Relevancy / Context Precision) |
 | 스트리밍 | FastAPI StreamingResponse + SSE |
 | 검색 교정 | Corrective RAG — LLM Grade + DuckDuckGo 웹 검색 |
+| 문학 지능화 | 엔티티 인덱스 · 인물 관계도 · 질문 유형 자동 분류 |
