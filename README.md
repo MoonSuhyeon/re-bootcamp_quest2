@@ -1,6 +1,6 @@
-# Advanced RAG System (v2 ~ v26)
+# Advanced RAG System (v2 ~ v27)
 
-단순한 RAG 구현을 넘어, 검색 품질 → 추론 구조 → 관측 가능성 → 자동 평가 → 실험 기반 개선 → 자동 실패 학습 → 병렬화 → 인증/모니터링 → 아키텍처 분리 → Agentic 검색 → 실시간 응답 + 정량 검증까지 확장된 엔드투엔드 RAG 엔지니어링 시스템입니다.
+단순한 RAG 구현을 넘어, 검색 품질 → 추론 구조 → 관측 가능성 → 자동 평가 → 실험 기반 개선 → 자동 실패 학습 → 병렬화 → 인증/모니터링 → 아키텍처 분리 → Agentic 검색 → 실시간 응답 + 정량 검증 → 검색 품질 자동 교정(CRAG)까지 확장된 엔드투엔드 RAG 엔지니어링 시스템입니다.
 
 ---
 
@@ -213,24 +213,38 @@ python evaluate_ragas.py --last 20     # 최근 20개만
 
 ---
 
-### v27: Corrective RAG (CRAG)
+### v27: Corrective RAG (CRAG) + 문학 특화 웹 검색
 
-**테마: "검색 품질 자동 교정"**
+**테마: "검색 품질 자동 교정 + 문학·세계관 해설 보완"**
 
 검색 결과를 LLM이 채점하고, 점수에 따라 내부 문서 / 웹 검색 보완 / 웹 검색 대체를 자동 선택합니다.
 
 ```
 검색 → CRAGGrader.grade() → Correct / Ambiguous / Incorrect
   → Correct   : 내부 문서로 생성
-  → Ambiguous : 내부 문서 + 웹 검색 병합 후 생성
-  → Incorrect : 웹 검색 결과로만 생성
+  → Ambiguous : 내부 문서 + 문학 해설 웹 검색 병합 후 생성
+  → Incorrect : 문학 해설 웹 검색 결과로만 생성
+```
+
+**문학 특화 웹 검색 쿼리 자동 생성**
+
+소설·세계관 문서를 업로드하면 검색이 부족할 때 단순 질문이 아닌 해설 특화 쿼리로 웹을 탐색합니다.
+
+```python
+# extract_work_title(): 청크에서 작품 제목·저자 자동 추출
+title, author = extract_work_title(chunks)
+# → ("소나기", "황순원")
+
+# build_literary_web_query(): 해설 특화 쿼리 생성
+query = build_literary_web_query(question, title, author)
+# → "소나기 황순원 해설 소년과 소녀의 관계는"
 ```
 
 SSE 스트리밍에 **status 이벤트** 추가:
 ```json
-{"type": "status",  "content": "📋 CRAG: 문서 검색 중..."}
-{"type": "status",  "content": "🌐 CRAG: Ambiguous → 웹 검색 보완 중..."}
-{"type": "done",    "crag_grade": {"label": "Ambiguous", "score": 4.1, "reason": "..."}, ...}
+{"type": "status",  "content": "📋 CRAG: 문서 검색 및 채점 중..."}
+{"type": "status",  "content": "🌐 CRAG: Ambiguous (점수 4.2/10) → 웹 해설 검색: \"소나기 황순원 해설 ...\""}
+{"type": "done",    "crag_grade": {"label": "Ambiguous", "score": 4.1, ...}, "web_query_used": "...", ...}
 ```
 
 | 파라미터 | 기본값 | 설명 |
