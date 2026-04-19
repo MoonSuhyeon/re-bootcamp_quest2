@@ -1,6 +1,6 @@
-# Advanced RAG System (v2 ~ v27)
+# Advanced RAG System (v2 ~ v28)
 
-단순한 RAG 구현을 넘어, 검색 품질 → 추론 구조 → 관측 가능성 → 자동 평가 → 실험 기반 개선 → 자동 실패 학습 → 병렬화 → 인증/모니터링 → 아키텍처 분리 → Agentic 검색 → 실시간 응답 + 정량 검증 → 검색 품질 자동 교정(CRAG)까지 확장된 엔드투엔드 RAG 엔지니어링 시스템입니다.
+단순한 RAG 구현을 넘어, 검색 품질 → 추론 구조 → 관측 가능성 → 자동 평가 → 실험 기반 개선 → 자동 실패 학습 → 병렬화 → 인증/모니터링 → 아키텍처 분리 → Agentic 검색 → 실시간 응답 + 정량 검증 → 검색 품질 자동 교정(CRAG) → 문학·세계관 지능화(Literary Intelligence)까지 확장된 엔드투엔드 RAG 엔지니어링 시스템입니다.
 
 ---
 
@@ -272,30 +272,33 @@ SSE 스트리밍에 **status 이벤트** 추가:
 | v25 | Agentic 검색 | Multi-Hop Reasoning, Self-RAG |
 | v26 | 실시간 + 검증 | Streaming SSE, RAGAS 정량 평가 |
 | v27 | 검색 품질 교정 | Corrective RAG (CRAG), 웹 검색 자동 보완 |
+| v28 | 문학·세계관 지능화 | 엔티티 인덱스, 인물 관계도, 질문 유형 자동 분류 |
 
 ---
 
-## 최종 스택 (v27)
+## 최종 스택 (v28)
 
 ```
 [Client] Streamlit (client_app.py)
     ↓ HTTP / SSE
 [Server] FastAPI (server_api.py)
     ├── routers/auth.py      — JWT 인증
-    ├── routers/docs.py      — PDF 업로드 · 인덱싱
-    ├── routers/chat.py      — RAG 질의응답 · Streaming · CRAG
+    ├── routers/docs.py      — PDF 업로드 · 인덱싱 · 엔티티 추출 · 관계도
+    ├── routers/chat.py      — RAG 질의응답 · Streaming · CRAG · 질문 유형 분류
     ├── routers/metrics.py   — 지표 · 로그 · 실패 데이터셋
     └── routers/admin.py     — 사용자 관리
     ↓
 [Engine] rag_engine.py
-    ├── CRAGGrader            — 검색 결과 채점 (0~10) · Grade 분류   [NEW v27]
-    ├── MultiHopPlanner       — 질문 분해 · hop별 검색 · 종합
-    ├── SelfRAGChecker        — 검색 충분성 판단 · 자기 교정
-    ├── AsyncRAGEngine        — asyncio 기반 비동기 파이프라인
-    ├── ToolRegistry          — Calculator · DateTime · WebSearch
-    ├── MetricsCollector      — P50/P95/P99 지연 측정
-    ├── FailureDataset        — 실패 케이스 저장 · JSONL export
-    └── UserManager           — 사용자 인증 · Rate Limit
+    ├── LiteraryEntityExtractor — 인물·지명·세력·아이템 추출 · 관계도 구축  [NEW v28]
+    ├── LiteraryQueryRouter     — 질문 유형 분류 (사실 / 해석)               [NEW v28]
+    ├── CRAGGrader              — 검색 결과 채점 (0~10) · Grade 분류          [NEW v27]
+    ├── MultiHopPlanner         — 질문 분해 · hop별 검색 · 종합
+    ├── SelfRAGChecker          — 검색 충분성 판단 · 자기 교정
+    ├── AsyncRAGEngine          — asyncio 기반 비동기 파이프라인
+    ├── ToolRegistry            — Calculator · DateTime · WebSearch
+    ├── MetricsCollector        — P50/P95/P99 지연 측정
+    ├── FailureDataset          — 실패 케이스 저장 · JSONL export
+    └── UserManager             — 사용자 인증 · Rate Limit
     ↓
 [Index] FAISS (IndexFlatIP)
     ├── chunk_index    — 청크 단위 벡터
