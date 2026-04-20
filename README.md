@@ -8,21 +8,18 @@
 
 ## 목차
 
-- [파이프라인 구성요소](#파이프라인-구성요소)
+- [스택](#스택)
+- [파이프라인 구성요소 진화](#파이프라인-구성요소-진화)
 - [시스템 진화](#시스템-진화)
 - [버전별 해결 문제 요약](#버전별-해결-문제-요약)
-- [최종 스택 (v26)](#최종-스택-v26)
 - [빠른 시작](#빠른-시작)
 - [폴더 구조](#폴더-구조)
-- [기술 스택](#기술-스택)
 
 ---
 
-## 파이프라인 구성요소
+## 스택
 
-RAG 파이프라인의 각 구성요소가 어떤 기술을 사용하고, 어떤 버전에서 기능이 추가됐는지 정리합니다.
-
-### 현재 스택
+### 파이프라인 구성요소
 
 | 구성요소 | 패키지 | 모델 / 종류 | 특징 |
 |---------|--------|------------|------|
@@ -34,7 +31,39 @@ RAG 파이프라인의 각 구성요소가 어떤 기술을 사용하고, 어떤
 | **리랭커** | `openai` SDK | `gpt-4o-mini` (0~10 채점) | LLM-as-Reranker. 전용 모델(Cohere/BGE) 없음 |
 | **체인** | `openai` SDK | `gpt-4o-mini` | Chat Completions 직접 호출, 3단계 Multi-doc chain |
 
-### 구성요소 × 기능 진화
+### 아키텍처
+
+```
+[Client] Streamlit (client_app.py)
+    ↓ HTTP / SSE
+[Server] FastAPI (server_api.py)
+    ├── routers/auth.py      — JWT 인증
+    ├── routers/docs.py      — PDF 업로드·인덱싱
+    ├── routers/chat.py      — RAG 질의응답·Streaming
+    ├── routers/metrics.py   — 지표·로그·실패 데이터셋
+    └── routers/admin.py     — 사용자 관리
+    ↓
+[Engine] rag_engine.py
+    ├── MultiHopPlanner   — 질문 분해·hop별 검색·종합
+    ├── SelfRAGChecker    — 검색 충분성 판단·자기 교정
+    ├── AsyncRAGEngine    — asyncio 기반 비동기 파이프라인
+    ├── ToolRegistry      — Calculator·DateTime·WebSearch
+    ├── MetricsCollector  — P50/P95/P99 지연 측정
+    ├── FailureDataset    — 실패 케이스 저장·JSONL export
+    └── UserManager       — 사용자 인증·Rate Limit
+    ↓
+[Index] FAISS (IndexFlatIP) — in-memory
+    ├── chunk_index    — 청크 단위 벡터
+    ├── sent_index     — 문장 단위 벡터
+    └── kw_index       — 키워드 단위 벡터
+[Eval] evaluate_ragas.py — Faithfulness · Answer Relevancy · Context Precision
+```
+
+---
+
+## 파이프라인 구성요소 진화
+
+각 구성요소에 어떤 버전에서 어떤 기능이 추가됐는지 정리합니다.
 
 ```
 ┌─────────────────┬──────────────────────────────────────────────────────────────────────┐
@@ -66,9 +95,9 @@ RAG 파이프라인의 각 구성요소가 어떤 기술을 사용하고, 어떤
 │                 │  v25  Multi-Hop: 복합 질문 → sub-query 분해 → 순차 검색 → 종합        │
 │                 │  v25  Self-RAG: 검색 결과 충분성 자동 판단 → 불충분 시 재검색          │
 ├─────────────────┼──────────────────────────────────────────────────────────────────────┤
-│                 │  v4   LLM-as-Reranker 첫 도입 (GPT 0~10 채점)                        │
+│                 │  v4   LLM-as-Reranker 첫 도입 (gpt-4o-mini, 0~10 채점)               │
 │  리랭커          │  v10  Tracer: 리랭커 latency·토큰 span 추적                           │
-│  GPT 채점        │  v21  LongContextReorder: 고점수 청크를 프롬프트 앞/뒤 배치           │
+│  gpt-4o-mini    │  v21  LongContextReorder: 고점수 청크를 프롬프트 앞/뒤 배치           │
 │                 │        (Lost in the Middle 논문 — 추가 LLM 호출 없음)                 │
 ├─────────────────┼──────────────────────────────────────────────────────────────────────┤
 │                 │  v1~2  단순 단일 LLM 호출                                              │
@@ -77,9 +106,9 @@ RAG 파이프라인의 각 구성요소가 어떤 기술을 사용하고, 어떤
 │                 │  v11  QueryResultCache: 동일 쿼리 결과 재사용                          │
 │                 │  v12  AnswerCache: 완성된 답변 TTL 캐시                                │
 │  체인            │  v12  Self-Refinement: Draft → Critique → Refine (3단계 자기검토)    │
-│  OpenAI Chat    │  v15  LLM 평가: 8개 필드 구조화 평가 (정확도/관련성/환각/신뢰도...)    │
-│  Completions    │  v19  Context Compression Phase 1: 임베딩 유사도로 관련 문장만 추출   │
-│  직접 호출       │  v21  Context Compression Phase 2: 청크 간 중복 문장 제거             │
+│  gpt-4o-mini    │  v15  LLM 평가: 8개 필드 구조화 평가 (정확도/관련성/환각/신뢰도...)    │
+│                 │  v19  Context Compression Phase 1: 임베딩 유사도로 관련 문장만 추출   │
+│                 │  v21  Context Compression Phase 2: 청크 간 중복 문장 제거             │
 │                 │  v21  Tool-Augmented RAG: 계산 의도 탐지 → Python 실행 → 결과 주입    │
 │                 │  v23  LLM Compression Phase 3: LLM이 직접 압축 (프롬프트 최소화)      │
 │                 │  v23  ToolRegistry: 함수 호출 4종 (계산기·날짜·검색·단위변환)         │
@@ -294,36 +323,6 @@ python evaluate_ragas.py --last 20   # 최근 20개 응답 품질 수치화
 
 ---
 
-## 최종 스택 (v26)
-
-```
-[Client] Streamlit (client_app.py)
-    ↓ HTTP / SSE
-[Server] FastAPI (server_api.py)
-    ├── routers/auth.py      — JWT 인증
-    ├── routers/docs.py      — PDF 업로드·인덱싱
-    ├── routers/chat.py      — RAG 질의응답·Streaming
-    ├── routers/metrics.py   — 지표·로그·실패 데이터셋
-    └── routers/admin.py     — 사용자 관리
-    ↓
-[Engine] rag_engine.py
-    ├── MultiHopPlanner   — 질문 분해·hop별 검색·종합
-    ├── SelfRAGChecker    — 검색 충분성 판단·자기 교정
-    ├── AsyncRAGEngine    — asyncio 기반 비동기 파이프라인
-    ├── ToolRegistry      — Calculator·DateTime·WebSearch
-    ├── MetricsCollector  — P50/P95/P99 지연 측정
-    ├── FailureDataset    — 실패 케이스 저장·JSONL export
-    └── UserManager       — 사용자 인증·Rate Limit
-    ↓
-[Index] FAISS (IndexFlatIP) — in-memory
-    ├── chunk_index    — 청크 단위 벡터
-    ├── sent_index     — 문장 단위 벡터
-    └── kw_index       — 키워드 단위 벡터
-[Eval] evaluate_ragas.py — RAGAS 오프라인 평가 (Faithfulness · Relevancy · Precision)
-```
-
----
-
 ## 빠른 시작
 
 ### 1. 환경 설정
@@ -396,22 +395,3 @@ rag-app/
 ├── change_logs/          ← 버전별 변동사항 요약
 └── requirements.txt
 ```
-
----
-
-## 기술 스택
-
-| 분류 | 기술 |
-|------|------|
-| LLM | OpenAI GPT-4o-mini (환경변수로 교체 가능) |
-| Embedding | OpenAI text-embedding-3-small |
-| Vector DB | FAISS (IndexFlatIP, in-memory) |
-| BM25 | rank-bm25 (BM25Okapi) |
-| API 서버 | FastAPI + Uvicorn |
-| 프론트엔드 | Streamlit |
-| 인증 | JWT (python-jose / PyJWT) |
-| 검색 전략 | Dense + BM25 Hybrid RRF, Query Routing, Multi-Hop, Self-RAG |
-| 스트리밍 | FastAPI StreamingResponse + SSE |
-| 평가 | RAGAS (Faithfulness / Answer Relevancy / Context Precision) |
-| 문서 파싱 | pdfplumber |
-| 모니터링 | 자체 구현 MetricsCollector (P50/P95/P99, Prometheus 호환) |
